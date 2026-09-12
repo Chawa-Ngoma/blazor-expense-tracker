@@ -1,0 +1,100 @@
+@inject ExpenseTrackerState State
+
+<EditForm Model="_model" OnValidSubmit="Submit" class="entity-form">
+    <DataAnnotationsValidator />
+
+    <div class="form-row">
+        <label for="expense-description">Description</label>
+        <InputText id="expense-description" @bind-Value="_model.Description" />
+        <ValidationMessage For="() => _model.Description" />
+    </div>
+
+    <div class="form-row">
+        <label for="expense-amount">Amount</label>
+        <InputNumber id="expense-amount" @bind-Value="_model.Amount" step="0.01" />
+        <ValidationMessage For="() => _model.Amount" />
+    </div>
+
+    <div class="form-row">
+        <label for="expense-date">Date</label>
+        <InputDate id="expense-date" @bind-Value="_model.Date" />
+        <ValidationMessage For="() => _model.Date" />
+    </div>
+
+    <div class="form-row">
+        <label for="expense-category">Category</label>
+        <InputSelect id="expense-category" @bind-Value="_model.CategoryId">
+            <option value="0">-- Select a category --</option>
+            @foreach (var category in State.Categories)
+            {
+                <option value="@category.Id">@category.Name</option>
+            }
+        </InputSelect>
+        <ValidationMessage For="() => _model.CategoryId" />
+    </div>
+
+    <div class="form-row">
+        <label for="expense-notes">Notes</label>
+        <InputText id="expense-notes" @bind-Value="_model.Notes" />
+    </div>
+
+    @if (_errorMessage is not null)
+    {
+        <p class="form-error">@_errorMessage</p>
+    }
+
+    <div class="form-actions">
+        <button type="submit" disabled="@_saving">@(Editing is null ? "Add expense" : "Save changes")</button>
+        <button type="button" @onclick="Cancel" disabled="@_saving">Cancel</button>
+    </div>
+</EditForm>
+
+@code {
+    /// <summary>Null to add a new expense; set to edit an existing one.</summary>
+    [Parameter] public ExpenseDto? Editing { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+    [Parameter] public EventCallback OnCancelled { get; set; }
+
+    private ExpenseRequest _model = new() { Date = DateOnly.FromDateTime(DateTime.Today) };
+    private bool _saving;
+    private string? _errorMessage;
+
+    protected override void OnParametersSet()
+    {
+        _model = Editing is null
+            ? new ExpenseRequest { Date = DateOnly.FromDateTime(DateTime.Today) }
+            : new ExpenseRequest
+            {
+                Description = Editing.Description,
+                Amount = Editing.Amount,
+                Date = Editing.Date,
+                CategoryId = Editing.CategoryId,
+                Notes = Editing.Notes
+            };
+    }
+
+    private async Task Submit()
+    {
+        _saving = true;
+        _errorMessage = null;
+        try
+        {
+            if (Editing is null)
+                await State.CreateExpenseAsync(_model);
+            else
+                await State.UpdateExpenseAsync(Editing.Id, _model);
+
+            await OnSaved.InvokeAsync();
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private Task Cancel() => OnCancelled.InvokeAsync();
+}

@@ -1,0 +1,12 @@
+@inject ExpenseTrackerState State
+
+<div class="month-selector">
+    <button type="button" @onclick="GoPrevious" aria-label="Previous month">&laquo; Prev</button>
+    <strong>@State.SelectedMonth.ToString("MMMM yyyy")</strong>
+    <button type="button" @onclick="GoNext" aria-label="Next month">Next &raquo;</button>
+</div>
+
+@code {
+    private Task GoPrevious() => State.SetSelectedMonthAsync(State.SelectedMonth.AddMonths(-1));
+    private Task GoNext() => State.SetSelectedMonthAsync(State.SelectedMonth.AddMonths(1));
+}

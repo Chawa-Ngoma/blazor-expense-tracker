@@ -1,41 +1,145 @@
 @page "/"
-@using ExpenseTracker.Shared
-@inject HttpClient Http
+@inject ExpenseTrackerState State
+@implements IDisposable
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Expenses</PageTitle>
 
-<h1>Expense Tracker</h1>
+<h1>Expenses</h1>
 
-<p>API connectivity check:</p>
+<MonthSelector />
 
-@if (_error is not null)
+<div class="toolbar">
+    <label>
+        Filter by category:
+        <select @bind="_categoryFilter">
+            <option value="0">All categories</option>
+            @foreach (var category in State.Categories)
+            {
+                <option value="@category.Id">@category.Name</option>
+            }
+        </select>
+    </label>
+
+    @if (!_showForm)
+    {
+        <button type="button" @onclick="StartAdd">Add expense</button>
+    }
+</div>
+
+@if (_showForm)
 {
-    <p style="color:red">Error calling API: @_error</p>
+    <ExpenseForm Editing="_editing" OnSaved="HandleSaved" OnCancelled="CloseForm" />
 }
-else if (_ping is null)
+
+@if (State.IsLoading)
 {
-    <p>Calling <code>/api/ping</code>...</p>
+    <p>Loading...</p>
+}
+else if (FilteredExpenses.Count == 0)
+{
+    <p>No expenses for this month@(_categoryFilter != 0 ? " in this category" : "").</p>
 }
 else
 {
-    <p>
-        API says: <strong>@_ping.Message</strong> (server time UTC: @_ping.ServerTimeUtc)
-    </p>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Notes</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var expense in FilteredExpenses)
+            {
+                <tr>
+                    <td>@expense.Date.ToString("yyyy-MM-dd")</td>
+                    <td>@expense.Description</td>
+                    <td>
+                        <span class="color-swatch" style="background-color:@GetCategoryColor(expense.CategoryId)"></span>
+                        @expense.CategoryName
+                    </td>
+                    <td>@expense.Amount.ToString("C")</td>
+                    <td>@expense.Notes</td>
+                    <td class="row-actions">
+                        <button type="button" @onclick="() => StartEdit(expense)">Edit</button>
+                        <button type="button" @onclick="() => DeleteExpense(expense.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (_errorMessage is not null)
+{
+    <p class="form-error">@_errorMessage</p>
 }
 
 @code {
-    private PingResponse? _ping;
-    private string? _error;
+    private int _categoryFilter;
+    private bool _showForm;
+    private ExpenseDto? _editing;
+    private string? _errorMessage;
+
+    private IReadOnlyList<ExpenseDto> FilteredExpenses =>
+        _categoryFilter == 0
+            ? State.Expenses
+            : State.Expenses.Where(e => e.CategoryId == _categoryFilter).ToList();
 
     protected override async Task OnInitializedAsync()
     {
+        State.OnChange += StateHasChanged;
+        await State.InitializeAsync();
+    }
+
+    private void StartAdd()
+    {
+        _editing = null;
+        _showForm = true;
+        _errorMessage = null;
+    }
+
+    private void StartEdit(ExpenseDto expense)
+    {
+        _editing = expense;
+        _showForm = true;
+        _errorMessage = null;
+    }
+
+    private void CloseForm()
+    {
+        _showForm = false;
+        _editing = null;
+    }
+
+    private void HandleSaved()
+    {
+        _showForm = false;
+        _editing = null;
+    }
+
+    private async Task DeleteExpense(int id)
+    {
+        _errorMessage = null;
         try
         {
-            _ping = await Http.GetFromJsonAsync<PingResponse>("api/ping");
+            await State.DeleteExpenseAsync(id);
         }
-        catch (Exception ex)
+        catch (ApiException ex)
         {
-            _error = ex.Message;
+            _errorMessage = ex.Message;
         }
+    }
+
+    private string GetCategoryColor(int categoryId) =>
+        State.Categories.FirstOrDefault(c => c.Id == categoryId)?.Color ?? "#6B7280";
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
     }
 }

@@ -1,0 +1,151 @@
+@page "/budgets"
+@inject ExpenseTrackerState State
+@implements IDisposable
+
+<PageTitle>Budgets</PageTitle>
+
+<h1>Budgets</h1>
+
+<MonthSelector />
+
+@if (State.IsLoading)
+{
+    <p>Loading...</p>
+}
+else if (State.Categories.Count == 0)
+{
+    <p>No categories yet. Add one on the Categories page first.</p>
+}
+else
+{
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Budget for @State.SelectedMonth.ToString("MMMM yyyy")</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var category in State.Categories)
+            {
+                var budget = FindBudget(category.Id);
+                <tr>
+                    <td>
+                        <span class="color-swatch" style="background-color:@category.Color"></span>
+                        @category.Name
+                    </td>
+                    <td>
+                        <input type="number" step="0.01" min="0.01"
+                               value="@GetPendingAmount(category.Id, budget)"
+                               @onchange="e => SetPendingAmount(category.Id, e.Value?.ToString())" />
+                    </td>
+                    <td>
+                        @if (budget is not null)
+                        {
+                            <span class="badge badge-set">Set</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-unset">Not set</span>
+                        }
+                    </td>
+                    <td>
+                        <button type="button" @onclick="() => Save(category.Id, budget)" disabled="@_saving">Save</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (_errorMessage is not null)
+{
+    <p class="form-error">@_errorMessage</p>
+}
+
+@code {
+    private readonly Dictionary<int, decimal> _pendingAmounts = new();
+    private DateOnly _lastRenderedMonth;
+    private bool _saving;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _lastRenderedMonth = State.SelectedMonth;
+        State.OnChange += HandleStateChanged;
+        await State.InitializeAsync();
+    }
+
+    private void HandleStateChanged()
+    {
+        if (State.SelectedMonth != _lastRenderedMonth)
+        {
+            _lastRenderedMonth = State.SelectedMonth;
+            _pendingAmounts.Clear();
+        }
+
+        StateHasChanged();
+    }
+
+    private BudgetDto? FindBudget(int categoryId) =>
+        State.Budgets.FirstOrDefault(b => b.CategoryId == categoryId);
+
+    private decimal GetPendingAmount(int categoryId, BudgetDto? existing)
+    {
+        if (_pendingAmounts.TryGetValue(categoryId, out var pending))
+            return pending;
+
+        return existing?.Amount ?? 0;
+    }
+
+    private void SetPendingAmount(int categoryId, string? value)
+    {
+        _pendingAmounts[categoryId] = decimal.TryParse(value, out var amount) ? amount : 0;
+    }
+
+    private async Task Save(int categoryId, BudgetDto? existing)
+    {
+        var amount = GetPendingAmount(categoryId, existing);
+        if (amount <= 0)
+        {
+            _errorMessage = "Amount must be greater than 0.";
+            return;
+        }
+
+        _saving = true;
+        _errorMessage = null;
+        try
+        {
+            if (existing is null)
+            {
+                await State.CreateBudgetAsync(new BudgetCreateRequest
+                {
+                    CategoryId = categoryId,
+                    Month = State.SelectedMonth,
+                    Amount = amount
+                });
+            }
+            else
+            {
+                await State.UpdateBudgetAsync(existing.Id, new BudgetUpdateRequest { Amount = amount });
+            }
+
+            _pendingAmounts.Remove(categoryId);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= HandleStateChanged;
+    }
+}

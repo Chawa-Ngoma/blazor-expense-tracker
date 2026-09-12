@@ -1,0 +1,111 @@
+@page "/categories"
+@inject ExpenseTrackerState State
+@implements IDisposable
+
+<PageTitle>Categories</PageTitle>
+
+<h1>Categories</h1>
+
+@if (!_showForm)
+{
+    <button type="button" @onclick="StartAdd">Add category</button>
+}
+
+@if (_showForm)
+{
+    <CategoryForm Editing="_editing" OnSaved="HandleSaved" OnCancelled="CloseForm" />
+}
+
+@if (_errorMessage is not null)
+{
+    <p class="form-error">@_errorMessage</p>
+}
+
+@if (State.Categories.Count == 0)
+{
+    <p>No categories yet.</p>
+}
+else
+{
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Color</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var category in State.Categories)
+            {
+                <tr>
+                    <td>@category.Name</td>
+                    <td>
+                        <span class="color-swatch" style="background-color:@category.Color"></span>
+                        @category.Color
+                    </td>
+                    <td class="row-actions">
+                        <button type="button" @onclick="() => StartEdit(category)">Edit</button>
+                        <button type="button" @onclick="() => DeleteCategory(category.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool _showForm;
+    private CategoryDto? _editing;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.OnChange += StateHasChanged;
+        await State.InitializeAsync();
+    }
+
+    private void StartAdd()
+    {
+        _editing = null;
+        _showForm = true;
+        _errorMessage = null;
+    }
+
+    private void StartEdit(CategoryDto category)
+    {
+        _editing = category;
+        _showForm = true;
+        _errorMessage = null;
+    }
+
+    private void CloseForm()
+    {
+        _showForm = false;
+        _editing = null;
+    }
+
+    private void HandleSaved()
+    {
+        _showForm = false;
+        _editing = null;
+    }
+
+    private async Task DeleteCategory(int id)
+    {
+        _errorMessage = null;
+        try
+        {
+            await State.DeleteCategoryAsync(id);
+        }
+        catch (ApiException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
+    }
+}
