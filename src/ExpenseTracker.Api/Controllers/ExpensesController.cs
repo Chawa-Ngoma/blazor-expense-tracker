@@ -33,6 +33,35 @@ public class ExpensesController(ExpenseTrackerDbContext db) : ControllerBase
         return Ok(expenses);
     }
 
+    /// <summary>Total spend per month for the trailing window of months ending at year/month (inclusive).
+    /// Months with no expenses are included with a total of 0.</summary>
+    [HttpGet("monthly-totals")]
+    public async Task<ActionResult<IEnumerable<MonthlyTotalDto>>> GetMonthlyTotals(int year, int month, int months = 6)
+    {
+        var end = new DateOnly(year, month, 1);
+        var start = end.AddMonths(-(months - 1));
+        var endExclusive = end.AddMonths(1);
+
+        var expensesInRange = await db.Expenses
+            .Where(e => e.Date >= start && e.Date < endExclusive)
+            .Select(e => new { e.Date.Year, e.Date.Month, e.Amount })
+            .ToListAsync();
+
+        var totalsByMonth = expensesInRange
+            .GroupBy(e => (e.Year, e.Month))
+            .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
+
+        var result = new List<MonthlyTotalDto>();
+        for (var i = 0; i < months; i++)
+        {
+            var current = start.AddMonths(i);
+            totalsByMonth.TryGetValue((current.Year, current.Month), out var total);
+            result.Add(new MonthlyTotalDto(current.Year, current.Month, total));
+        }
+
+        return Ok(result);
+    }
+
     /// <summary>Get a single expense by id.</summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ExpenseDto>> GetById(int id)

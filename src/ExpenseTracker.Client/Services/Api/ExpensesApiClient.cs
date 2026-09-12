@@ -40,4 +40,10 @@ public class ExpensesApiClient(HttpClient http) : IExpensesApiClient
         var response = await http.DeleteAsync($"api/expenses/{id}");
         await response.EnsureSuccessOrThrowAsync();
     }
+
+    public async Task<List<MonthlyTotalDto>> GetMonthlyTotalsAsync(int year, int month, int months = 6)
+    {
+        return await http.GetFromJsonAsync<List<MonthlyTotalDto>>(
+            $"api/expenses/monthly-totals?year={year}&month={month}&months={months}") ?? [];
+    }
 }

@@ -208,3 +208,143 @@ code {
     background: #f3f4f6;
     color: #6b7280;
 }
+
+.chart-section {
+    margin-bottom: 2rem;
+}
+
+.chart-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Horizontal bar chart (spending by category) */
+.hbar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 40rem;
+}
+
+.hbar-row {
+    display: grid;
+    grid-template-columns: 8rem 1fr 5rem;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hbar-track {
+    background: #f0f0f0;
+    border-radius: 0.25rem;
+    height: 1.1rem;
+    overflow: hidden;
+}
+
+.hbar-fill {
+    height: 100%;
+    border-radius: 0.25rem;
+    transition: width 0.2s ease;
+}
+
+.hbar-value {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Budget vs actual chart */
+.bva-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 40rem;
+}
+
+.bva-row {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.bva-label {
+    display: flex;
+    align-items: center;
+}
+
+.bva-track {
+    position: relative;
+    background: #f0f0f0;
+    border-radius: 0.25rem;
+    height: 1.1rem;
+    overflow: visible;
+}
+
+.bva-actual {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: #3B82F6;
+    border-radius: 0.25rem;
+    transition: width 0.2s ease;
+}
+
+.bva-actual.bva-over {
+    background: #dc2626;
+}
+
+.bva-budget-marker {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 3px;
+    background: #111827;
+}
+
+.bva-numbers {
+    grid-column: 2;
+    font-size: 0.85rem;
+    color: #374151;
+}
+
+.bva-numbers-over {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+/* Trend chart */
+.trend-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    height: 12rem;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 0.5rem;
+    max-width: 40rem;
+}
+
+.trend-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    flex: 1;
+}
+
+.trend-bar {
+    width: 60%;
+    background: #3B82F6;
+    border-radius: 0.25rem 0.25rem 0 0;
+    min-height: 2px;
+}
+
+.trend-value {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.trend-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+}

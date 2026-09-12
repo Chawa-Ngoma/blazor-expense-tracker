@@ -9,4 +9,5 @@ public interface IExpensesApiClient
     Task<ExpenseDto> CreateAsync(ExpenseRequest request);
     Task<ExpenseDto> UpdateAsync(int id, ExpenseRequest request);
     Task DeleteAsync(int id);
+    Task<List<MonthlyTotalDto>> GetMonthlyTotalsAsync(int year, int month, int months = 6);
 }

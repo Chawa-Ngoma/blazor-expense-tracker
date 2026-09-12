@@ -1,0 +1,131 @@
+@page "/dashboard"
+@inject ExpenseTrackerState State
+@implements IDisposable
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+
+<MonthSelector />
+
+@if (State.IsLoading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <section class="chart-section">
+        <h2>Spending by category — @State.SelectedMonth.ToString("MMMM yyyy")</h2>
+        @if (CategoryTotals.Count == 0)
+        {
+            <p>No expenses recorded this month.</p>
+        }
+        else
+        {
+            <div class="hbar-chart">
+                @foreach (var (category, total) in CategoryTotals)
+                {
+                    <div class="hbar-row">
+                        <span class="hbar-label">@category.Name</span>
+                        <div class="hbar-track">
+                            <div class="hbar-fill" style="width:@(WidthPercent(total, MaxCategoryTotal))%; background-color:@category.Color;"></div>
+                        </div>
+                        <span class="hbar-value">@total.ToString("C")</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="chart-section">
+        <h2>Budget vs. actual — @State.SelectedMonth.ToString("MMMM yyyy")</h2>
+        @if (BudgetComparisons.Count == 0)
+        {
+            <p>No budgets set for this month yet.</p>
+        }
+        else
+        {
+            <div class="bva-chart">
+                @foreach (var row in BudgetComparisons)
+                {
+                    var scale = Math.Max(row.Budget, row.Actual) * 1.05m;
+                    var isOver = row.Actual > row.Budget;
+                    <div class="bva-row">
+                        <div class="bva-label">
+                            <span class="color-swatch" style="background-color:@row.Category.Color"></span>
+                            @row.Category.Name
+                        </div>
+                        <div class="bva-track">
+                            <div class="bva-actual @(isOver ? "bva-over" : "")" style="width:@(WidthPercent(row.Actual, scale))%"></div>
+                            <div class="bva-budget-marker" style="left:@(WidthPercent(row.Budget, scale))%"></div>
+                        </div>
+                        <div class="bva-numbers @(isOver ? "bva-numbers-over" : "")">
+                            @row.Actual.ToString("C") of @row.Budget.ToString("C")
+                            @if (isOver)
+                            {
+                                <span> — over budget</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="chart-section">
+        <h2>Spending trend — last 6 months</h2>
+        <div class="trend-chart">
+            @foreach (var monthTotal in State.MonthlyTotals)
+            {
+                <div class="trend-bar-col">
+                    <div class="trend-bar" style="height:@(WidthPercent(monthTotal.Total, MaxMonthlyTotal))%" title="@monthTotal.Total.ToString("C")"></div>
+                    <span class="trend-value">@monthTotal.Total.ToString("C0")</span>
+                    <span class="trend-label">@(new DateOnly(monthTotal.Year, monthTotal.Month, 1).ToString("MMM yyyy"))</span>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        State.OnChange += StateHasChanged;
+        await State.InitializeAsync();
+    }
+
+    private List<(CategoryDto Category, decimal Total)> CategoryTotals =>
+        State.Categories
+            .Select(c => (Category: c, Total: State.Expenses.Where(e => e.CategoryId == c.Id).Sum(e => e.Amount)))
+            .Where(x => x.Total > 0)
+            .OrderByDescending(x => x.Total)
+            .ToList();
+
+    private decimal MaxCategoryTotal => CategoryTotals.Count > 0 ? CategoryTotals.Max(x => x.Total) : 0;
+
+    private List<BudgetComparison> BudgetComparisons =>
+        State.Budgets
+            .Select(b => new BudgetComparison(
+                State.Categories.First(c => c.Id == b.CategoryId),
+                b.Amount,
+                State.Expenses.Where(e => e.CategoryId == b.CategoryId).Sum(e => e.Amount)))
+            .OrderByDescending(x => x.Actual)
+            .ToList();
+
+    private decimal MaxMonthlyTotal => State.MonthlyTotals.Count > 0 ? State.MonthlyTotals.Max(x => x.Total) : 0;
+
+    private static double WidthPercent(decimal value, decimal max)
+    {
+        if (max <= 0)
+            return 0;
+
+        return (double)(value / max) * 100;
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
+    }
+
+    private record BudgetComparison(CategoryDto Category, decimal Budget, decimal Actual);
+}

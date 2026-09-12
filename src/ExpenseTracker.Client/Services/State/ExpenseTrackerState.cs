@@ -21,6 +21,9 @@ public class ExpenseTrackerState(
     public IReadOnlyList<ExpenseDto> Expenses { get; private set; } = [];
     public IReadOnlyList<BudgetDto> Budgets { get; private set; } = [];
 
+    /// <summary>Total spend per month for the 6 months ending at <see cref="SelectedMonth"/>, oldest first.</summary>
+    public IReadOnlyList<MonthlyTotalDto> MonthlyTotals { get; private set; } = [];
+
     public bool IsLoading { get; private set; }
 
     public async Task InitializeAsync()
@@ -135,6 +138,7 @@ public class ExpenseTrackerState(
     {
         Expenses = await expensesApi.GetAllAsync(SelectedMonth.Year, SelectedMonth.Month);
         Budgets = await budgetsApi.GetAllAsync(SelectedMonth.Year, SelectedMonth.Month);
+        MonthlyTotals = await expensesApi.GetMonthlyTotalsAsync(SelectedMonth.Year, SelectedMonth.Month);
     }
 
     private void NotifyChanged() => OnChange?.Invoke();
