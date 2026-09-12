@@ -1,0 +1,102 @@
+@* Throwaway page for exercising ExpenseTrackerState end-to-end before real UI exists (Phase 3). *@
+@page "/devtest"
+@using ExpenseTracker.Shared.Categories
+@using ExpenseTracker.Shared.Expenses
+@using ExpenseTracker.Client.Services.Api
+@using ExpenseTracker.Client.Services.State
+@inject ExpenseTrackerState State
+@implements IDisposable
+
+<PageTitle>Dev Test</PageTitle>
+
+<h1>Dev Test — state service round-trip</h1>
+
+<p>Selected month: @State.SelectedMonth.ToString("yyyy-MM")</p>
+
+<button @onclick="RunScenario" disabled="@_running">Run create → list → delete scenario</button>
+
+@if (_log.Count > 0)
+{
+    <h2>Log</h2>
+    <ul>
+        @foreach (var line in _log)
+        {
+            <li>@line</li>
+        }
+    </ul>
+}
+
+<h2>Categories (@State.Categories.Count)</h2>
+<ul>
+    @foreach (var c in State.Categories)
+    {
+        <li>@c.Id: @c.Name (@c.Color)</li>
+    }
+</ul>
+
+<h2>Expenses this month (@State.Expenses.Count)</h2>
+<ul>
+    @foreach (var e in State.Expenses)
+    {
+        <li>@e.Id: @e.Description — @e.Amount.ToString("C") on @e.Date (@e.CategoryName)</li>
+    }
+</ul>
+
+@code {
+    private readonly List<string> _log = [];
+    private bool _running;
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.OnChange += StateHasChanged;
+        await State.InitializeAsync();
+    }
+
+    private async Task RunScenario()
+    {
+        _running = true;
+        _log.Clear();
+        StateHasChanged();
+
+        try
+        {
+            var categoryName = $"DevTest {DateTime.Now:HHmmss}";
+            var category = await State.CreateCategoryAsync(new CategoryRequest { Name = categoryName, Color = "#FF00AA" });
+            _log.Add($"Created category {category.Id}: {category.Name}");
+
+            var expense = await State.CreateExpenseAsync(new ExpenseRequest
+            {
+                Description = "Dev test expense",
+                Amount = 12.34m,
+                Date = State.SelectedMonth,
+                CategoryId = category.Id,
+                Notes = "created from /devtest"
+            });
+            _log.Add($"Created expense {expense.Id}: {expense.Description} ({expense.Amount:C})");
+
+            _log.Add($"Expenses for {State.SelectedMonth:yyyy-MM}: {State.Expenses.Count} (should include the one just created)");
+
+            await State.DeleteExpenseAsync(expense.Id);
+            _log.Add($"Deleted expense {expense.Id}");
+
+            await State.DeleteCategoryAsync(category.Id);
+            _log.Add($"Deleted category {category.Id}");
+
+            _log.Add("Scenario complete.");
+        }
+        catch (ApiException ex)
+        {
+            _log.Add($"API error ({ex.StatusCode}): {ex.Message}");
+        }
+        finally
+        {
+            _running = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
+    }
+}
