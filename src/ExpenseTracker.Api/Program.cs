@@ -1,4 +1,6 @@
+using ExpenseTracker.Api.Data;
 using Microsoft.AspNetCore.Components.WebAssembly.Server;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddDbContext<ExpenseTrackerDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("ExpenseTrackerDb")));
 
 var app = builder.Build();
 
