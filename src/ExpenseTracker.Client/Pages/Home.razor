@@ -1,0 +1,41 @@
+@page "/"
+@using ExpenseTracker.Shared
+@inject HttpClient Http
+
+<PageTitle>Home</PageTitle>
+
+<h1>Expense Tracker</h1>
+
+<p>API connectivity check:</p>
+
+@if (_error is not null)
+{
+    <p style="color:red">Error calling API: @_error</p>
+}
+else if (_ping is null)
+{
+    <p>Calling <code>/api/ping</code>...</p>
+}
+else
+{
+    <p>
+        API says: <strong>@_ping.Message</strong> (server time UTC: @_ping.ServerTimeUtc)
+    </p>
+}
+
+@code {
+    private PingResponse? _ping;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _ping = await Http.GetFromJsonAsync<PingResponse>("api/ping");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+}
